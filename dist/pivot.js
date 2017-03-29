@@ -906,10 +906,11 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, tbody, td, th, thead, totalAggregator, tr, txt, val, x;
+      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, getHoverHandler, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, tbody, td, th, thead, totalAggregator, tr, txt, val, x;
       defaults = {
         table: {
-          clickCallback: null
+          clickCallback: null,
+          hoverCallback: null
         },
         localeStrings: {
           totals: "Totals"
@@ -920,6 +921,29 @@
       rowAttrs = pivotData.rowAttrs;
       rowKeys = pivotData.getRowKeys();
       colKeys = pivotData.getColKeys();
+      if (opts.table.hoverCallback) {
+        getHoverHandler = function(value, rowValues, colValues) {
+          var attr, filters, i;
+          filters = {};
+          for (i in colAttrs) {
+            if (!hasProp.call(colAttrs, i)) continue;
+            attr = colAttrs[i];
+            if (colValues[i] != null) {
+              filters[attr] = colValues[i];
+            }
+          }
+          for (i in rowAttrs) {
+            if (!hasProp.call(rowAttrs, i)) continue;
+            attr = rowAttrs[i];
+            if (rowValues[i] != null) {
+              filters[attr] = rowValues[i];
+            }
+          }
+          return function(e) {
+            return opts.table.hoverCallback(e, value, filters, pivotData);
+          };
+        };
+      }
       if (opts.table.clickCallback) {
         getClickHandler = function(value, rowValues, colValues) {
           var attr, filters, i;
@@ -1063,6 +1087,9 @@
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, colKey);
           }
+          if (getHoverHandler != null) {
+            td.onmouseover = getHoverHandler(val, rowKey, colKey);
+          }
           tr.appendChild(td);
         }
         totalAggregator = pivotData.getAggregator(rowKey, []);
@@ -1156,15 +1183,15 @@
         pivotData = new opts.dataClass(input, opts);
         try {
           result = opts.renderer(pivotData, opts.rendererOptions);
-        } catch (_error) {
-          e = _error;
+        } catch (error) {
+          e = error;
           if (typeof console !== "undefined" && console !== null) {
             console.error(e.stack);
           }
           result = $("<span>").html(opts.localeStrings.renderError);
         }
-      } catch (_error) {
-        e = _error;
+      } catch (error) {
+        e = error;
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }
@@ -1637,8 +1664,8 @@
           items: 'li',
           placeholder: 'pvtPlaceholder'
         });
-      } catch (_error) {
-        e = _error;
+      } catch (error) {
+        e = error;
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }

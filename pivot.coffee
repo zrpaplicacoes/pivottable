@@ -439,7 +439,7 @@ callWithJQuery ($) ->
     pivotTableRenderer = (pivotData, opts) ->
 
         defaults =
-            table: clickCallback: null
+            table: clickCallback: null, hoverCallback: null
             localeStrings: totals: "Totals"
 
         opts = $.extend(true, {}, defaults, opts)
@@ -448,6 +448,13 @@ callWithJQuery ($) ->
         rowAttrs = pivotData.rowAttrs
         rowKeys = pivotData.getRowKeys()
         colKeys = pivotData.getColKeys()
+        
+        if opts.table.hoverCallback
+            getHoverHandler = (value, rowValues, colValues) ->
+                filters = {}
+                filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
+                filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
+                return (e) -> opts.table.hoverCallback(e, value, filters, pivotData)
 
         if opts.table.clickCallback
             getClickHandler = (value, rowValues, colValues) ->
@@ -455,7 +462,7 @@ callWithJQuery ($) ->
                 filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
                 filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
                 return (e) -> opts.table.clickCallback(e, value, filters, pivotData)
-
+                
         #now actually build the output
         result = document.createElement("table")
         result.className = "pvtTable"
@@ -548,6 +555,8 @@ callWithJQuery ($) ->
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
+                if getHoverHandler?
+                    td.onmouseover = getHoverHandler(val, rowKey, colKey)
                 tr.appendChild td
 
             totalAggregator = pivotData.getAggregator(rowKey, [])
