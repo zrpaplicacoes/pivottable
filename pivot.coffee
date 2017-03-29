@@ -454,14 +454,12 @@ callWithJQuery ($) ->
                 filters = {}
                 filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
                 filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
-                cellModal.className = ""
                 return (e) -> opts.table.mouseOverCallback(e, value, filters, pivotData, cellModal)
         
             getMouseOutCallback = (value, rowValues, colValues, cellModal) ->
                 filters = {}
                 filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
                 filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
-                cellModal.className = "hidden"
                 if opts.table.mouseOutCallback?
                   return (e) -> opts.table.mouseOutCallback(e, value, filters, pivotData, cellModal)
                 else
@@ -568,8 +566,8 @@ callWithJQuery ($) ->
                     td.onclick = getClickHandler(val, rowKey, colKey)
                 if getMouseOverHandler?
                     cellModal = document.createElement("div")
-                    cellModal.className = 'hidden'
-                    td.appendChild(cellModal)
+                    cellModal.className = "pvtHoverModal hidden"
+                    td.appendChild cellModal
                     td.onmouseover = getMouseOverHandler(val, rowKey, colKey, cellModal)
                     td.onmouseout  = getMouseOutCallback(val, rowKey, colKey, cellModal)
                 tr.appendChild td

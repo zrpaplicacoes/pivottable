@@ -940,7 +940,6 @@
               filters[attr] = rowValues[i];
             }
           }
-          cellModal.className = "";
           return function(e) {
             return opts.table.mouseOverCallback(e, value, filters, pivotData, cellModal);
           };
@@ -962,7 +961,6 @@
               filters[attr] = rowValues[i];
             }
           }
-          cellModal.className = "hidden";
           if (opts.table.mouseOutCallback != null) {
             return function(e) {
               return opts.table.mouseOutCallback(e, value, filters, pivotData, cellModal);
@@ -1119,7 +1117,7 @@
           }
           if (getMouseOverHandler != null) {
             cellModal = document.createElement("div");
-            cellModal.className = 'hidden';
+            cellModal.className = "pvtHoverModal hidden";
             td.appendChild(cellModal);
             td.onmouseover = getMouseOverHandler(val, rowKey, colKey, cellModal);
             td.onmouseout = getMouseOutCallback(val, rowKey, colKey, cellModal);
