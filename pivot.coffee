@@ -34,7 +34,7 @@ callWithJQuery ($) ->
             return "" if x == 0 and not opts.showZero
             result = addSeparators (opts.scaler*x).toFixed(opts.digitsAfterDecimal), opts.thousandsSep, opts.decimalSep
             return ""+opts.prefix+result+opts.suffix
-
+    
     #aggregator templates default to US number formatting but this is overrideable
     usFmt = numberFormat()
     usFmtInt = numberFormat(digitsAfterDecimal: 0)
@@ -177,7 +177,7 @@ callWithJQuery ($) ->
         "Heatmap":        (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("heatmap",    opts)
         "Row Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("rowheatmap", opts)
         "Col Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("colheatmap", opts)
-
+    
     locales =
         en:
             aggregators: aggregators
@@ -190,6 +190,7 @@ callWithJQuery ($) ->
                 selectNone: "Select None"
                 tooMany: "(too many to list)"
                 filterResults: "Filter values"
+                export: 'Export'
                 apply: "Apply"
                 cancel: "Cancel"
                 totals: "Totals" #for table renderer
@@ -429,8 +430,8 @@ callWithJQuery ($) ->
             return agg ? {value: (-> null), format: -> ""}
 
     #expose these to the outside world
-    $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
-        naturalSort, numberFormat, sortAs, PivotData}
+    $.pivotUtilities = { aggregatorTemplates, aggregators, renderers, derivers, locales,
+        naturalSort, numberFormat, sortAs, PivotData }
 
     ###
     Default Renderer for hierarchical table layout
@@ -671,6 +672,7 @@ callWithJQuery ($) ->
             derivedAttributes: {}
             aggregators: locales[locale].aggregators
             renderers: locales[locale].renderers
+            exporters: {}
             hiddenAttributes: []
             menuLimit: 500
             cols: [], rows: [], vals: []
@@ -688,8 +690,9 @@ callWithJQuery ($) ->
         localeDefaults =
             rendererOptions: {localeStrings}
             localeStrings: localeStrings
-
+            
         existingOpts = @data "pivotUIOptions"
+
         if not existingOpts? or overwrite
             opts = $.extend(true, {}, localeDefaults, $.extend({}, defaults, inputOpts))
         else
@@ -727,8 +730,20 @@ callWithJQuery ($) ->
                 .bind "change", -> refresh() #capture reference
             for own x of opts.renderers
                 $("<option>").val(x).html(x).appendTo(renderer)
-
-
+            
+            if !$.isEmptyObject opts.exporters 
+                exporter = $("<select>").addClass('pvtExporter')
+                                        .appendTo(rendererControl)
+                
+                ## exporter control
+                exportButton = $("<button>", {type: "button"}).text(opts.localeStrings.export)
+                    .addClass('pvtExporterButton')
+                    .appendTo(rendererControl)
+                    .bind "click", -> pivotTableExporter()
+                
+                for own x of opts.exporters
+                    $("<option>").val(x).html(x).appendTo(exporter);
+              
             #axis list, including the double-click menu
             unused = $("<td>").addClass('pvtAxisContainer pvtUnused')
             shownAttributes = (a for a of attrValues when a not in opts.hiddenAttributes)
@@ -936,6 +951,37 @@ callWithJQuery ($) ->
 
             #set up for refreshing
             refreshDelayed = =>
+                subopts = getRenderOptions()
+                pivotTable.pivot(materializedInput,subopts)
+                pivotUIOptions = $.extend {}, opts,
+                    cols: subopts.cols
+                    rows: subopts.rows
+                    colOrder: subopts.colOrder
+                    rowOrder: subopts.rowOrder
+                    vals: subopts.vals
+                    exclusions: subopts.exclusions
+                    inclusions: subopts.inclusions
+                    inclusionsInfo: subopts.inclusions #duplicated for backwards-compatibility
+                    aggregatorName: subopts.aggregatorName
+                    rendererName: subopts.rendererName
+
+                @data "pivotUIOptions", pivotUIOptions
+
+                # if requested make sure unused columns are in alphabetical order
+                if opts.autoSortUnusedAttrs
+                    unusedAttrsContainer = @find("td.pvtUnused.pvtAxisContainer")
+                    $(unusedAttrsContainer).children("li")
+                        .sort((a, b) => naturalSort($(a).text(), $(b).text()))
+                        .appendTo unusedAttrsContainer
+
+                pivotTable.css("opacity", 1)
+                opts.onRefresh(pivotUIOptions) if opts.onRefresh?
+
+            refresh = =>
+                pivotTable.css("opacity", 0.5)
+                setTimeout refreshDelayed, 10
+            
+            getRenderOptions = =>
                 subopts =
                     derivedAttributes: opts.derivedAttributes
                     localeStrings: opts.localeStrings
@@ -978,6 +1024,7 @@ callWithJQuery ($) ->
                 subopts.vals = vals
                 subopts.aggregator = opts.aggregators[aggregator.val()](vals)
                 subopts.renderer = opts.renderers[renderer.val()]
+                subopts.rendererName = renderer.val()
                 subopts.rowOrder = rowOrderArrow.data("order")
                 subopts.colOrder = colOrderArrow.data("order")
                 #construct filter here
@@ -1003,36 +1050,18 @@ callWithJQuery ($) ->
                     for k,excludedItems of exclusions
                         return false if ""+(record[k] ? 'null') in excludedItems
                     return true
-
-                pivotTable.pivot(materializedInput,subopts)
-                pivotUIOptions = $.extend {}, opts,
-                    cols: subopts.cols
-                    rows: subopts.rows
-                    colOrder: subopts.colOrder
-                    rowOrder: subopts.rowOrder
-                    vals: vals
-                    exclusions: exclusions
-                    inclusions: inclusions
-                    inclusionsInfo: inclusions #duplicated for backwards-compatibility
-                    aggregatorName: aggregator.val()
-                    rendererName: renderer.val()
-
-                @data "pivotUIOptions", pivotUIOptions
-
-                # if requested make sure unused columns are in alphabetical order
-                if opts.autoSortUnusedAttrs
-                    unusedAttrsContainer = @find("td.pvtUnused.pvtAxisContainer")
-                    $(unusedAttrsContainer).children("li")
-                        .sort((a, b) => naturalSort($(a).text(), $(b).text()))
-                        .appendTo unusedAttrsContainer
-
-                pivotTable.css("opacity", 1)
-                opts.onRefresh(pivotUIOptions) if opts.onRefresh?
-
-            refresh = =>
-                pivotTable.css("opacity", 0.5)
-                setTimeout refreshDelayed, 10
-
+                
+                return $.extend(true, subopts, { inclusions, exclusions })
+            
+            pivotTableExporter = =>
+                subopts = $.extend(true, getRenderOptions(), { exporter: opts.exporters[exporter.val()] });
+                try
+                    pivotData = new opts.dataClass(materializedInput, subopts)
+                    try
+                        subopts.exporter(pivotData, subopts.rendererOptions)
+                    catch e
+                        console.error(e.stack) if console?
+                  
             #the very first refresh will actually display the table
             refresh()
 
