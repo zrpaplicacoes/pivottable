@@ -65,7 +65,7 @@
         csv = "data:text/csv;charset=utf-8,";
         for (n = 0, len5 = result.length; n < len5; n++) {
           r = result[n];
-          csv += r.join(',') + "\n";
+          csv += r.join(';') + "\n";
         }
         encodedUri = encodeURI(csv);
         link = document.createElement("a");

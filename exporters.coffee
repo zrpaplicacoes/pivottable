@@ -48,7 +48,7 @@ callWithJQuery ($) ->
             result.push row
         csv = "data:text/csv;charset=utf-8,"
         for r in result
-            csv += r.join(',') + "\n";
+            csv += r.join(';') + "\n";
 
         encodedUri = encodeURI(csv)
 
