@@ -439,7 +439,7 @@ callWithJQuery ($) ->
     pivotTableRenderer = (pivotData, opts) ->
 
         defaults =
-            table: clickCallback: null, hoverCallback: null
+            table: clickCallback: null, mouseOverCallback: null, mouseOutCallback: null
             localeStrings: totals: "Totals"
 
         opts = $.extend(true, {}, defaults, opts)
@@ -449,13 +449,24 @@ callWithJQuery ($) ->
         rowKeys = pivotData.getRowKeys()
         colKeys = pivotData.getColKeys()
         
-        if opts.table.hoverCallback
-            getHoverHandler = (value, rowValues, colValues) ->
+        if opts.table.mouseOverCallback
+            getMouseOverHandler = (value, rowValues, colValues, cellModal) ->
                 filters = {}
                 filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
                 filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
-                return (e) -> opts.table.hoverCallback(e, value, filters, pivotData)
-
+                cellModal.className = ""
+                return (e) -> opts.table.mouseOverCallback(e, value, filters, pivotData, cellModal)
+        
+            getMouseOutCallback = (value, rowValues, colValues, cellModal) ->
+                filters = {}
+                filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
+                filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
+                cellModal.className = "hidden"
+                if opts.table.mouseOutCallback?
+                  return (e) -> opts.table.mouseOutCallback(e, value, filters, pivotData, cellModal)
+                else
+                  return (e) -> e
+        
         if opts.table.clickCallback
             getClickHandler = (value, rowValues, colValues) ->
                 filters = {}
@@ -555,8 +566,12 @@ callWithJQuery ($) ->
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
-                if getHoverHandler?
-                    td.onmouseover = getHoverHandler(val, rowKey, colKey)
+                if getMouseOverHandler?
+                    cellModal = document.createElement("div")
+                    cellModal.className = 'hidden'
+                    td.appendChild(cellModal)
+                    td.onmouseover = getMouseOverHandler(val, rowKey, colKey, cellModal)
+                    td.onmouseout  = getMouseOutCallback(val, rowKey, colKey, cellModal)
                 tr.appendChild td
 
             totalAggregator = pivotData.getAggregator(rowKey, [])

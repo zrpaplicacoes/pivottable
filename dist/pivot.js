@@ -906,11 +906,12 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, getHoverHandler, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, tbody, td, th, thead, totalAggregator, tr, txt, val, x;
+      var aggregator, c, cellModal, colAttrs, colKey, colKeys, defaults, getClickHandler, getMouseOutCallback, getMouseOverHandler, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, tbody, td, th, thead, totalAggregator, tr, txt, val, x;
       defaults = {
         table: {
           clickCallback: null,
-          hoverCallback: null
+          mouseOverCallback: null,
+          mouseOutCallback: null
         },
         localeStrings: {
           totals: "Totals"
@@ -921,8 +922,8 @@
       rowAttrs = pivotData.rowAttrs;
       rowKeys = pivotData.getRowKeys();
       colKeys = pivotData.getColKeys();
-      if (opts.table.hoverCallback) {
-        getHoverHandler = function(value, rowValues, colValues) {
+      if (opts.table.mouseOverCallback) {
+        getMouseOverHandler = function(value, rowValues, colValues, cellModal) {
           var attr, filters, i;
           filters = {};
           for (i in colAttrs) {
@@ -939,9 +940,38 @@
               filters[attr] = rowValues[i];
             }
           }
+          cellModal.className = "";
           return function(e) {
-            return opts.table.hoverCallback(e, value, filters, pivotData);
+            return opts.table.mouseOverCallback(e, value, filters, pivotData, cellModal);
           };
+        };
+        getMouseOutCallback = function(value, rowValues, colValues, cellModal) {
+          var attr, filters, i;
+          filters = {};
+          for (i in colAttrs) {
+            if (!hasProp.call(colAttrs, i)) continue;
+            attr = colAttrs[i];
+            if (colValues[i] != null) {
+              filters[attr] = colValues[i];
+            }
+          }
+          for (i in rowAttrs) {
+            if (!hasProp.call(rowAttrs, i)) continue;
+            attr = rowAttrs[i];
+            if (rowValues[i] != null) {
+              filters[attr] = rowValues[i];
+            }
+          }
+          cellModal.className = "hidden";
+          if (opts.table.mouseOutCallback != null) {
+            return function(e) {
+              return opts.table.mouseOutCallback(e, value, filters, pivotData, cellModal);
+            };
+          } else {
+            return function(e) {
+              return e;
+            };
+          }
         };
       }
       if (opts.table.clickCallback) {
@@ -1087,8 +1117,12 @@
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, colKey);
           }
-          if (getHoverHandler != null) {
-            td.onmouseover = getHoverHandler(val, rowKey, colKey);
+          if (getMouseOverHandler != null) {
+            cellModal = document.createElement("div");
+            cellModal.className = 'hidden';
+            td.appendChild(cellModal);
+            td.onmouseover = getMouseOverHandler(val, rowKey, colKey, cellModal);
+            td.onmouseout = getMouseOutCallback(val, rowKey, colKey, cellModal);
           }
           tr.appendChild(td);
         }
